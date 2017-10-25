@@ -1,3 +1,4 @@
+//REQUIRED
 #if defined(ARDUINO) 
 SYSTEM_MODE(SEMI_AUTOMATIC); 
 #endif
@@ -9,7 +10,7 @@ SYSTEM_MODE(SEMI_AUTOMATIC);
   //Define analog pins
 #define POTENTIOMETER_PIN 0   //Value range: 0-4095 (4096)
 
-Servo The_Legend;
+Servo servo;
 
 volatile int state = 0;
 
@@ -19,27 +20,31 @@ void setup() {
 
   pinMode(BUTTON_PIN, INPUT);
 
-  The_Legend.attach(SERVO_PIN);
+  servo.attach(SERVO_PIN);
   attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), changeState, FALLING);
 }
 
 int potent_val = 0;
+int servo_deg = 0;
+bool should_run_servo = true;
 
 void loop() {
   potent_val = analogRead(POTENTIOMETER_PIN);
 
-  int servo_deg = map(potent_val, 0, 4095, 0, 162); //Using 162 instead of 179 because there was
+  if(should_run_servo) {
+    servo_deg = map(potent_val, 0, 4095, 0, 150); //Using 150 instead of 179 because there was
                                                     // a lot of clicking when the higher degrees
                                                     // were used. Wanted to spare a servo.
-
-  int button_val = digitalRead(BUTTON_PIN);
-                                                
-
-  if(state == 0) {
-    The_Legend.write(servo_deg);
-  } else if (state == 1) {
-    The_Legend.write(162-servo_deg);
+    if(state == 0) {
+      servo.write(servo_deg);
+    } else if (state == 1) {
+      servo.write(162-servo_deg);
+    }
   }
+  should_run_servo = !should_run_servo;
+  
+  int button_val = digitalRead(BUTTON_PIN);
+                                            
   Serial.print("Servo degree:: "); Serial.println(servo_deg);
   Serial.print("Button value:: "); Serial.println(button_val);
   delay(50);
