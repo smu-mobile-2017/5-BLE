@@ -1,0 +1,5 @@
+platform :ios, '11.0'
+use_frameworks!
+target 'Choice' do
+	pod 'Bond', '~> 6.4'
+end
