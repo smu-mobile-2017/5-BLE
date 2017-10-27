@@ -113,21 +113,25 @@ void deviceDidDisconnect(uint16_t handle){
 }
 
 int didWriteData(uint16_t value_handle, uint8_t *buffer, uint16_t size) {
-	Serial.print("Write value handler: ");
-	Serial.println(value_handle, HEX);
+	//Serial.print("Write value handler: ");
+	//Serial.println(value_handle, HEX);
 
 	if (character1_handle == value_handle) {
 		memcpy(characteristic1_data, buffer, min(size,CHARACTERISTIC1_MAX_LEN));
+		/*
 		Serial.print("Characteristic1 write value: ");
 		for (uint8_t index = 0; index < min(size,CHARACTERISTIC1_MAX_LEN); index++) {
 			Serial.print(characteristic1_data[index], HEX);
 			Serial.print(" ");
 		}
 		Serial.println(" ");
+		*/
+		handleWriteData((char*)characteristic1_data);
 	}
 	return 0;
 }
 
+/*
 static void characteristic2_notify(btstack_timer_source_t *ts) {   
 	if (Serial.available()) {
 		//read the serial command into a buffer
@@ -146,6 +150,23 @@ static void characteristic2_notify(btstack_timer_source_t *ts) {
 	// reset
 	ble.setTimer(ts, 200);
 	ble.addTimer(ts);
+}
+*/
+
+static void writeData(uint8_t* data, uint8_t data_bytes) {   
+	//read the serial command into a buffer
+	uint8_t rx_len = min(data_bytes, CHARACTERISTIC2_MAX_LEN);
+	memcpy(rx_buf, data, rx_len);
+
+	Serial.print("Sent: ");
+	Serial.println(rx_buf);
+	rx_state = 1;
+
+	if (rx_state != 0) {
+		ble.sendNotify(character2_handle, (uint8_t*)rx_buf, CHARACTERISTIC2_MAX_LEN);
+		memset(rx_buf, 0x00, 20);
+		rx_state = 0;
+	}
 }
 
 void bleSetup() {
@@ -169,17 +190,20 @@ void bleSetup() {
 	ble.startAdvertising();
 
 	// one-shot timer
+	/*
 	characteristic2.process = &characteristic2_notify;
 	ble.setTimer(&characteristic2, 500); // 100ms
 	ble.addTimer(&characteristic2);
+	*/
 }
 /* ============================================= */
 /* END BLE FUNCTIONS */
 /* ============================================= */
 
 Servo servo;
-int potentiometerValue = 0;
-int servoDegrees = 0;
+uint16_t potentiometerValue = 0;
+uint16_t servoDegrees = 0;
+uint8_t currentColor[3] = {0,0,0};
 
 vector<string> tokenize(string input) {
 	istringstream iss(input);
@@ -194,9 +218,13 @@ int stoi(string numberString) {
 	return atoi(numberString.c_str());
 }
 
-void interpret(string command, string buffer) {
-	int color[3];
-	
+void handleWriteData(const char* data) {
+	Serial.println("Handle write data:");
+	Serial.println(data);
+	interpret(string(data));
+}
+
+void interpret(string command) {	
 	auto tokens = tokenize(command);
 
 	//Compare the command identifier
@@ -206,19 +234,39 @@ void interpret(string command, string buffer) {
 	// led command
 	// "l r[0-255] g[0-255] b[0-255]"
 	else if(tokens[0] == LED_TOKEN) {
+		uint8_t color[3];
 		for(int i = 0; i < 3; ++i) {
 			color[i] = stoi(tokens[i+1]);
 		}
-	} 
+		RGB.color(color[0],color[1],color[2]);
+		currentColor[0] = color[0];
+		currentColor[1] = color[1];
+		currentColor[2] = color[2];
+	}
 	// read command
 	// "r"
 	else if(tokens[0] == READ_TOKEN) {
-		stringstream buffer;
-		buffer << "m " << servoDegrees << endl;
-		buffer << "p " << potentiometerValue << endl;
-		buffer << "r " << color[0] << " " << color[1] << " " << color[2] << endl;
+		uint8_t bytes[10];
+		// servo
+		bytes[0] = servoDegrees >> 8;
+		bytes[1] = servoDegrees & 0xff;
+
+		// potentiometer
+		bytes[2] = potentiometerValue >> 8;
+		bytes[3] = potentiometerValue & 0xff;
+
+		// led
+		bytes[6] = currentColor[0];
+		bytes[7] = currentColor[1];
+		bytes[8] = currentColor[2];
+
+		// buffer << "m " << servoDegrees << endl;
+		// buffer << "p " << potentiometerValue << endl;
+		// buffer << "r " << color[0] << " " << color[1] << " " << color[2] << endl;
+
+		bytes[9] = '\0';
 		
-		Serial.println(buffer.str().c_str());
+		writeData(bytes, 10);
 	} 
 	// error state
 	else {
@@ -228,6 +276,7 @@ void interpret(string command, string buffer) {
 }
 
 void setup() {
+	RGB.control(true);
 	Serial.begin(115200);
 	
 	bleSetup();
@@ -253,6 +302,17 @@ void loop() {
 
 void didPressButton() {
 	Serial.println("Did press button");
+	if(currentColor[0] == 0 && currentColor[1] == 0 && currentColor[2] == 0) {
+		RGB.color(255,255,255);
+		currentColor[0] = 255;
+		currentColor[1] = 255;
+		currentColor[2] = 255;
+	} else {
+		RGB.color(0,0,0);
+		currentColor[0] = 0;
+		currentColor[1] = 0;
+		currentColor[2] = 0;
+	}
 }
 
 void moveServo(int degrees) {

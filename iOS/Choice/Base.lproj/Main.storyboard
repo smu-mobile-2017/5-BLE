@@ -14,7 +14,7 @@
         <!--Devices-->
         <scene sceneID="HdG-Tl-Arc">
             <objects>
-                <tableViewController id="Utg-su-i3G" sceneMemberID="viewController">
+                <tableViewController id="Utg-su-i3G" customClass="DevicesTableViewController" customModule="Choice" customModuleProvider="target" sceneMemberID="viewController">
                     <tableView key="view" clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" separatorStyle="default" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="28" sectionFooterHeight="28" id="XWL-GL-xBL">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -62,7 +62,7 @@
         <!--Control Panel-->
         <scene sceneID="tne-QT-ifu">
             <objects>
-                <viewController title="Control Panel" id="BYZ-38-t0r" customClass="ViewController" customModule="Choice" customModuleProvider="target" sceneMemberID="viewController">
+                <viewController title="Control Panel" id="BYZ-38-t0r" customClass="ControlPanelViewController" customModule="Choice" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="8bC-Xf-vdC">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -160,7 +160,7 @@
                                     <action selector="didChangeColorSlider:" destination="BYZ-38-t0r" eventType="valueChanged" id="2a5-Eu-WaA"/>
                                 </connections>
                             </slider>
-                            <pickerView contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="Ltd-Dk-4eZ">
+                            <pickerView hidden="YES" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="Ltd-Dk-4eZ">
                                 <rect key="frame" x="16" y="118" width="188" height="130"/>
                                 <color key="backgroundColor" red="0.99999600649999998" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                                 <constraints>
@@ -168,8 +168,8 @@
                                 </constraints>
                             </pickerView>
                             <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" horizontalCompressionResistancePriority="749" text="120 deg" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="Wcn-8m-jrn">
-                                <rect key="frame" x="218.5" y="172.5" width="140.5" height="21"/>
-                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <rect key="frame" x="218.5" y="165" width="140.5" height="36"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="30"/>
                                 <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                 <nil key="highlightedColor"/>
                             </label>

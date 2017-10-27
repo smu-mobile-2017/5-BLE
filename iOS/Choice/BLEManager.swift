@@ -32,6 +32,9 @@ final class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
 	static let didChangeStateNotification = Notification.Name(
 		rawValue: "\(notificationPrefix).didChangeStateNotification"
 	)
+	static let didDiscoverCharacteristicsNotification = Notification.Name(
+		rawValue: "\(notificationPrefix).didDiscoverCharacteristics"
+	)
 	
 	private let rbServiceUUID = CBUUID(string: "713D0000-503E-4C75-BA94-3148F18D941E")
 	private let rbCharacteristicTXUUID = CBUUID(string: "713D0002-503E-4C75-BA94-3148F18D941E")
@@ -44,12 +47,13 @@ final class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
 	private(set) var peripherals = [String: CBPeripheral]()
 	private var rssiHandler: RSSIHandlerFunction?
 	
-	static let shared = BLEManager()
+	var state: CBManagerState!
 	
 	override init() {
 		super.init()
 		self.manager = CBCentralManager(delegate: self, queue: nil)
 		self.manager.delegate = self
+		self.state = self.manager.state
 	}
 	
 	func scan(forTime time: TimeInterval) throws {
@@ -92,16 +96,28 @@ final class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
 	
 	func read() {
 		guard let characteristic = self.characteristics[rbCharacteristicTXUUID.uuidString] else {
+			print("Could not retrieve TX characteristic")
 			return
 		}
-		self.connectedPeripheral?.readValue(for: characteristic)
+		guard let connectedPeripheral = self.connectedPeripheral else {
+			print("Could not get connected peripheral")
+			return
+		}
+		connectedPeripheral.readValue(for: characteristic)
 	}
 	
 	func write(_ data: Data) {
 		guard let characteristic = self.characteristics[rbCharacteristicRXUUID.uuidString] else {
+			print("Could not retrieve RX characteristic")
+			print("Desired UUID: \(rbCharacteristicRXUUID.uuidString)")
+			print(characteristics)
 			return
 		}
-		self.connectedPeripheral?.readValue(for: characteristic)
+		guard let connectedPeripheral = self.connectedPeripheral else {
+			print("Could not get connected peripheral")
+			return
+		}
+		connectedPeripheral.writeValue(data, for: characteristic, type: .withoutResponse)
 	}
 	
 	// MARK: CBCentralManagerDelegate implementation
@@ -110,18 +126,25 @@ final class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
 		// stubs
 		switch central.state {
 		case .unknown:
+			print("CBCentralManager unknown state")
 			break
 		case .resetting:
+			print("CBCentralManager resetting state")
 			break
 		case .unsupported:
+			print("CBCentralManager unsupported state")
 			break
 		case .unauthorized:
+			print("CBCentralManager unauthorized state")
 			break
 		case .poweredOff:
+			print("CBCentralManager powered off state")
 			break
 		case .poweredOn:
+			print("CBCentralManager powered on state")
 			break
 		}
+		self.state = central.state
 		NotificationCenter.default.post(name: BLEManager.didChangeStateNotification, object: self, userInfo: [
 			"state": central.state as Any
 		])
@@ -144,6 +167,7 @@ final class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
 	}
 	
 	func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+		print("centralManager:didDisconnectPeripheral:")
 		if let error = error {
 			print(error.localizedDescription)
 		}
@@ -175,6 +199,7 @@ final class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
 	}
 	
 	func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+		print("peripheral(_ peripheral:,didDiscoverCharacteristicsFor service:,error:)")
 		if let error = error {
 			print(error.localizedDescription)
 			return
@@ -185,6 +210,8 @@ final class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
 		if let characteristic = self.characteristics[rbCharacteristicTXUUID.uuidString] {
 			self.connectedPeripheral?.setNotifyValue(true, for: characteristic)
 		}
+		
+		NotificationCenter.default.post(name: BLEManager.didDiscoverCharacteristicsNotification, object: self)
 	}
 	
 	func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {

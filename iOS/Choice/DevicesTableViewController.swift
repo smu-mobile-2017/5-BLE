@@ -7,13 +7,46 @@
 //
 
 import UIKit
+import CoreBluetooth
 
 class DevicesTableViewController: UITableViewController {
+	
+	var readyToScan = false
+	var needsInitialTableLoad = true
+	let bleManager = (UIApplication.shared.delegate as! AppDelegate).bleManager
+	var connectedPeripheral: CBPeripheral?
+	
+	var peripherals: [CBPeripheral] = [] {
+		didSet {
+//			self.tableView.reloadData()
+			CATransaction.setDisableActions(true)
+			self.tableView.reloadSections(IndexSet(integer: 0), with: .top)
+			CATransaction.setDisableActions(false)
+		}
+	}
 
     override func viewDidLoad() {
         super.viewDidLoad()
 		self.refreshControl = UIRefreshControl()
-		self.refreshControl?.addTarget(self, action: #selector(self.didRefreshTable), for: .valueChanged)
+		self.refreshControl?.addTarget(self, action: #selector(self.didPullRefresh), for: .valueChanged)
+		NotificationCenter.default.addObserver(
+			self,
+			selector: #selector(self.bleDidChangeState(notification:)),
+			name: BLEManager.didChangeStateNotification,
+			object: nil
+		)
+		NotificationCenter.default.addObserver(
+			self,
+			selector: #selector(self.bleDidConnect(notification:)),
+			name: BLEManager.didConnectNotification,
+			object: nil
+		)
+		NotificationCenter.default.addObserver(
+			self,
+			selector: #selector(self.bleDidDiscoverCharacteristics(notification:)),
+			name: BLEManager.didDiscoverCharacteristicsNotification,
+			object: nil
+		)
     }
 
     override func didReceiveMemoryWarning() {
@@ -31,21 +64,31 @@ class DevicesTableViewController: UITableViewController {
 		self.present(alert, animated: true, completion: nil)
 	}
 	
-	@objc func didRefreshTable() {
-		print("didRefreshTable")
-		let scanTime: TimeInterval = 10.0
+	@objc func didPullRefresh() {
+		let scanTime: TimeInterval = 2.0
 		
 		// Spin the refresh control
-		// [CITE] https://stackoverflow.com/a/39950613/3592716
-		self.refreshControl?.layoutIfNeeded()
 		self.refreshControl?.beginRefreshing()
+		let scrollView = self.tableView as UIScrollView
+		scrollView.setContentOffset(
+			CGPoint(x: 0.0, y: scrollView.contentOffset.y - self.refreshControl!.frame.size.height),
+			animated: true
+		)
+		
+		needsInitialTableLoad = false
+		
 		Timer.scheduledTimer(withTimeInterval: scanTime, repeats: false) { timer in
 			self.refreshControl?.endRefreshing()
-			print(BLEManager.shared.peripherals)
+			// [CITE] https://stackoverflow.com/a/27673136/3592716
+			// must delay table reloading until after endRefreshing finishes
+			// animation
+			Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { timer in
+				self.peripherals = Array(self.bleManager.peripherals.values)
+			}
 		}
 		// Actually scan
 		do {
-			try BLEManager.shared.scan(forTime: scanTime)
+			try bleManager.scan(forTime: scanTime)
 		} catch BLEManagerError.notPoweredOn {
 			alert(title: "BLE Error", message: "Please turn on Bluetooth.")
 			self.refreshControl?.endRefreshing()
@@ -53,6 +96,23 @@ class DevicesTableViewController: UITableViewController {
 			alert(title: "Unknown Error", message: String(describing: error))
 			self.refreshControl?.endRefreshing()
 		}
+	}
+	
+	@objc func bleDidChangeState(notification: Notification) {
+		if bleManager.state == .poweredOn && needsInitialTableLoad {
+			didPullRefresh()
+		} else {
+			print(bleManager.state == .poweredOn)
+			print(needsInitialTableLoad)
+		}
+	}
+	
+	@objc func bleDidConnect(notification: Notification) {
+		// nothing
+	}
+	
+	@objc func bleDidDiscoverCharacteristics(notification: Notification) {
+		performSegue(withIdentifier: "openControlPanel", sender: self)
 	}
 
     // MARK: - Table view data source
@@ -64,61 +124,43 @@ class DevicesTableViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         // #warning Incomplete implementation, return the number of rows
-        return 1
+        return peripherals.count
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "deviceCell", for: indexPath)
-
-        // Configure the cell...
+		
+		let peripheral = peripherals[indexPath.row]
+        cell.textLabel?.text = peripheral.name
+		cell.detailTextLabel?.text = peripheral.identifier.uuidString
 
         return cell
     }
 	
+	override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+		let peripheral = peripherals[indexPath.row]
+		do {
+			try bleManager.connect(to: peripheral)
+			// the discover characteristics event handler performs segue
+		} catch BLEManagerError.notPoweredOn {
+			print("Not powered on")
+		} catch let error {
+			print(String(describing: error))
+		}
+		self.connectedPeripheral = peripheral
+	}
 
-    /*
-    // Override to support conditional editing of the table view.
-    override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the specified item to be editable.
-        return true
-    }
-    */
-
-    /*
-    // Override to support editing the table view.
-    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCellEditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete {
-            // Delete the row from the data source
-            tableView.deleteRows(at: [indexPath], with: .fade)
-        } else if editingStyle == .insert {
-            // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view
-        }    
-    }
-    */
-
-    /*
-    // Override to support rearranging the table view.
-    override func tableView(_ tableView: UITableView, moveRowAt fromIndexPath: IndexPath, to: IndexPath) {
-
-    }
-    */
-
-    /*
-    // Override to support conditional rearranging of the table view.
-    override func tableView(_ tableView: UITableView, canMoveRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the item to be re-orderable.
-        return true
-    }
-    */
-
-    /*
+	
     // MARK: - Navigation
 
     // In a storyboard-based application, you will often want to do a little preparation before navigation
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         // Get the new view controller using segue.destinationViewController.
         // Pass the selected object to the new view controller.
+//		if let controlPanel = segue.destination as? ControlPanelViewController {
+//			controlPanel.peripheral
+//		}
     }
-    */
+
 
 }
