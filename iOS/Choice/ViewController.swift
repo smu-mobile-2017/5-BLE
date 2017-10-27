@@ -45,6 +45,7 @@ class ViewController: UIViewController, UIPickerViewDelegate, UIPickerViewDataSo
 	override func viewDidLoad() {
 		super.viewDidLoad()
 		// Do any additional setup after loading the view, typically from a nib.
+		answerPicker.delegate = self
 		updateCurrentColor(nil, updateDevice: false, updateSliders: true)
 	}
 
@@ -61,7 +62,6 @@ class ViewController: UIViewController, UIPickerViewDelegate, UIPickerViewDataSo
 			colorText = "rgb(\(color[0]),\(color[1]),\(color[2]))"
 			
 			let uic = color.map { CGFloat($0)/255 }
-			print(uic)
 			ledColorView.backgroundColor = UIColor(
 				red: uic[0], green: uic[1], blue: uic[2], alpha: 1.0
 			)
@@ -90,7 +90,6 @@ class ViewController: UIViewController, UIPickerViewDelegate, UIPickerViewDataSo
 	}
 	
 	func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
-		print(servoOptions[row])
 		return servoOptions[row]
 	}
 	

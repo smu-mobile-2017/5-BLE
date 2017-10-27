@@ -14,7 +14,7 @@ enum BLEManagerError: Error {
 	case notCurrentlyConnected
 }
 
-class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
+final class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
 	
 	typealias RSSIHandlerFunction = (Int, Error?) -> ()
 	
